@@ -187,13 +187,13 @@ export const vehicleTypesApi = {
 // --- Users ----------------------------------------------------------------
 
 export interface AppUser {
-  id: string; name: string; phone: string; email: string | null;
+  id: string; userCode?: string | null; name: string; phone: string; email: string | null;
   role: Role; status: 'ACTIVE' | 'DISABLED'; createdAt: string;
 }
 
 export const usersApi = {
   list: () => request<{ users: AppUser[] }>('/users'),
-  create: (data: { name: string; phone: string; email?: string; password: string; role: Role; employeeCode?: string }) =>
+  create: (data: { name: string; phone: string; email?: string; password: string; role: Role; employeeCode?: string; userCode?: string }) =>
     request<{ user: AppUser }>('/users', { method: 'POST', body: JSON.stringify(data) }),
   disable: (id: string) => request<{ user: AppUser }>(`/users/${id}/disable`, { method: 'PATCH' }),
 };

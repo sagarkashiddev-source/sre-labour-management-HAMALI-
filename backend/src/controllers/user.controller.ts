@@ -10,12 +10,14 @@ export async function listUsers(_req: Request, res: Response) {
   const users = await prisma.user.findMany({
     select: {
       id: true,
+      userCode: true,
       name: true,
       phone: true,
       email: true,
       role: true,
       status: true,
       createdAt: true,
+      labourProfile: { select: { employeeCode: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -29,6 +31,7 @@ const createUserSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters.'),
   role: z.enum(['ADMIN', 'OWNER', 'LABOUR']),
   employeeCode: z.string().optional(), // required if role === LABOUR
+  userCode: z.string().optional(),
 });
 
 export async function createUser(req: Request, res: Response) {
@@ -42,6 +45,7 @@ export async function createUser(req: Request, res: Response) {
 
   const user = await prisma.user.create({
     data: {
+      userCode: data.userCode,
       name: data.name,
       phone: data.phone,
       email: data.email,

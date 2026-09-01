@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getOwnerPermission } from '../services/permission.service';
 import { calculateEntryFinancials, getActiveRuleForDate } from '../services/calculation.service';
@@ -89,8 +89,8 @@ export async function upsertFinancial(req: Request, res: Response) {
       action: oldAmount === null ? 'AMOUNT_SET' : 'AMOUNT_CHANGED',
       entityType: 'EntryFinancial',
       entityId: id,
-      oldValue: oldAmount === null ? null : { amount: oldAmount.toString() },
-      newValue: { amount: calc.amount.toString(), netAmount: calc.netAmount.toString() },
+      oldValue: oldAmount === null ? Prisma.JsonNull : { amount: oldAmount.toString() } as Prisma.InputJsonValue,
+      newValue: { amount: calc.amount.toString(), netAmount: calc.netAmount.toString() } as Prisma.InputJsonValue,
       ipAddress: req.ip,
     },
   });

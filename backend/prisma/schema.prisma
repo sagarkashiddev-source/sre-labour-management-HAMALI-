@@ -48,6 +48,7 @@ enum LoadUnload {
 
 model User {
   id           String     @id @default(uuid())
+  userCode     String?    @unique
   name         String
   phone        String     @unique
   email        String?    @unique

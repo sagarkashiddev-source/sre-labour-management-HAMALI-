@@ -47,6 +47,7 @@ export function AdminUsers() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-900/50">
             <tr>
+              <th className="px-5 py-2.5">ID</th>
               <th className="px-5 py-2.5">Name</th>
               <th className="px-5 py-2.5">Role</th>
               <th className="px-5 py-2.5">Phone</th>
@@ -57,6 +58,7 @@ export function AdminUsers() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="border-t border-slate-100 dark:border-slate-800">
+                <td className="px-5 py-2.5 font-semibold">{u.userCode || '-'}</td>
                 <td className="px-5 py-2.5 font-medium">{u.name}</td>
                 <td className="px-5 py-2.5"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role]}`}>{u.role}</span></td>
                 <td className="px-5 py-2.5">{u.phone}</td>

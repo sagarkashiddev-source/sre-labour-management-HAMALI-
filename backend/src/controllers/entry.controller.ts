@@ -293,8 +293,8 @@ export async function updateEntry(req: Request, res: Response) {
       action: 'ENTRY_UPDATED',
       entityType: 'WorkEntry',
       entityId: id,
-      oldValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.old])),
-      newValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.new])),
+      oldValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.old])) as Prisma.InputJsonValue,
+      newValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.new])) as Prisma.InputJsonValue,
       ipAddress: req.ip,
     },
   });
