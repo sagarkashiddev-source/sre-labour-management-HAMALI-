@@ -1,0 +1,119 @@
+{
+  "common": {
+    "appName": "Sagar Roadways and Enterprises",
+    "logout": "लॉग आउट",
+    "save": "सेव्ह करा",
+    "cancel": "रद्द करा",
+    "saving": "सेव्ह होत आहे...",
+    "search": "शोधा",
+    "loading": "लोड होत आहे...",
+    "back": "मागे",
+    "edit": "बदला",
+    "add": "जोडा",
+    "language": "भाषा"
+  },
+  "login": {
+    "title": "हमाली मॅनेजमेंट",
+    "tagline": "काम मॅनेज करा. प्रत्येक एंट्री ट्रॅक करा.",
+    "identifier": "मोबाईल / ईमेल",
+    "password": "पासवर्ड",
+    "loginButton": "लॉगिन",
+    "signingIn": "लॉगिन होत आहे...",
+    "error": "मोबाईल/ईमेल किंवा पासवर्ड चुकीचा आहे."
+  },
+  "labour": {
+    "nav": {
+      "home": "होम",
+      "entry": "एंट्री",
+      "history": "हिस्ट्री",
+      "me": "मी"
+    },
+    "home": {
+      "greetingMorning": "सुप्रभात",
+      "greetingAfternoon": "नमस्कार",
+      "greetingEvening": "शुभ संध्याकाळ",
+      "addEntry": "+ नवीन एंट्री करा",
+      "todaysEntries": "आजच्या एंट्री",
+      "noEntriesToday": "आज अजून कोणतीही एंट्री नाही."
+    },
+    "history": {
+      "title": "माझ्या एंट्री",
+      "searchPlaceholder": "वाहन क्रमांक शोधा...",
+      "noEntries": "कोणतीही एंट्री सापडली नाही."
+    },
+    "me": {
+      "title": "मी",
+      "logout": "लॉग आउट करा"
+    },
+    "addEntry": {
+      "addTitle": "नवीन काम एंट्री",
+      "editTitle": "एंट्री बदला",
+      "saveEntry": "एंट्री सेव्ह करा",
+      "saveChanges": "बदल सेव्ह करा",
+      "savedTitle": "एंट्री सेव्ह झाली",
+      "savedDesc": "तुमची काम एंट्री यशस्वीरित्या सेव्ह झाली आहे.",
+      "alreadyProcessed": "ही एंट्री आधीच प्रोसेस झाली आहे आणि आता ती बदलता येणार नाही. दुरुस्तीसाठी अ‍ॅडमिनशी संपर्क साधा."
+    },
+    "entryCard": {
+      "approved": "मंजूर — आता बदलता येणार नाही",
+      "cancelled": "रद्द",
+      "editBtn": "बदला"
+    }
+  },
+  "entryForm": {
+    "date": "तारीख",
+    "vehicleNoLabel": "Vehicle No.",
+    "type": "टाईप",
+    "selectType": "टाईप निवडा",
+    "loadUnload": "लोड / अनलोड",
+    "load": "लोड",
+    "unload": "अनलोड",
+    "company": "कंपनी",
+    "searchCompanyPlaceholder": "कंपनी शोधा...",
+    "selectCompany": "कंपनी निवडा",
+    "remark": "शेरा",
+    "vehicleRequired": "वाहन क्रमांक आवश्यक आहे.",
+    "typeRequired": "कृपया टाईप निवडा.",
+    "companyRequired": "कृपया कंपनी निवडा.",
+    "saveEntryDefault": "एंट्री सेव्ह करा",
+    "saveAnyway": "तरीही सेव्ह करा",
+    "genericError": "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.",
+    "noCompaniesFound": "कोणतीही कंपनी सापडली नाही."
+  },
+  "owner": {
+    "portal": "ओनर पोर्टल",
+    "nav": {
+      "dashboard": "डॅशबोर्ड",
+      "entries": "एंट्री",
+      "companies": "कंपन्या",
+      "reports": "रिपोर्ट्स"
+    }
+  },
+  "admin": {
+    "searchPlaceholder": "वाहन, कंपनी, एंट्री शोधा...",
+    "nav": {
+      "sectionMain": "मुख्य",
+      "sectionManagement": "व्यवस्थापन",
+      "sectionReports": "रिपोर्ट्स",
+      "sectionSystem": "सिस्टम",
+      "dashboard": "डॅशबोर्ड",
+      "entries": "एंट्री",
+      "pendingApprovals": "मंजुरी बाकी",
+      "companies": "कंपन्या",
+      "labour": "मजूर",
+      "attendance": "हजेरी",
+      "reports": "रिपोर्ट्स",
+      "users": "युजर्स",
+      "settings": "सेटिंग्ज",
+      "auditLogs": "ऑडिट लॉग"
+    },
+    "companiesPage": {
+      "title": "कंपन्या",
+      "addCompany": "+ कंपनी जोडा",
+      "searchPlaceholder": "कंपनी शोधा...",
+      "active": "सक्रिय",
+      "disabled": "निष्क्रिय",
+      "modalTitle": "कंपनी जोडा"
+    }
+  }
+}

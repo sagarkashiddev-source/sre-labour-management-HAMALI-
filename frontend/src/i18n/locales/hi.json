@@ -1,0 +1,119 @@
+{
+  "common": {
+    "appName": "Sagar Roadways and Enterprises",
+    "logout": "लॉग आउट",
+    "save": "सेव करें",
+    "cancel": "रद्द करें",
+    "saving": "सेव हो रहा है...",
+    "search": "खोजें",
+    "loading": "लोड हो रहा है...",
+    "back": "वापस",
+    "edit": "बदलें",
+    "add": "जोड़ें",
+    "language": "भाषा"
+  },
+  "login": {
+    "title": "हमाली मैनेजमेंट",
+    "tagline": "काम मैनेज करें। हर एंट्री ट्रैक करें।",
+    "identifier": "मोबाइल / ईमेल",
+    "password": "पासवर्ड",
+    "loginButton": "लॉगिन",
+    "signingIn": "लॉगिन हो रहा है...",
+    "error": "मोबाइल/ईमेल या पासवर्ड गलत है।"
+  },
+  "labour": {
+    "nav": {
+      "home": "होम",
+      "entry": "एंट्री",
+      "history": "हिस्ट्री",
+      "me": "मैं"
+    },
+    "home": {
+      "greetingMorning": "सुप्रभात",
+      "greetingAfternoon": "नमस्कार",
+      "greetingEvening": "शुभ संध्या",
+      "addEntry": "+ नई एंट्री करें",
+      "todaysEntries": "आज की एंट्रीज़",
+      "noEntriesToday": "आज अभी तक कोई एंट्री नहीं है।"
+    },
+    "history": {
+      "title": "मेरी एंट्रीज़",
+      "searchPlaceholder": "वाहन नंबर खोजें...",
+      "noEntries": "कोई एंट्री नहीं मिली।"
+    },
+    "me": {
+      "title": "मैं",
+      "logout": "लॉग आउट करें"
+    },
+    "addEntry": {
+      "addTitle": "नई काम एंट्री",
+      "editTitle": "एंट्री बदलें",
+      "saveEntry": "एंट्री सेव करें",
+      "saveChanges": "बदलाव सेव करें",
+      "savedTitle": "एंट्री सेव हो गई",
+      "savedDesc": "आपकी काम एंट्री सफलतापूर्वक सेव हो गई है।",
+      "alreadyProcessed": "यह एंट्री पहले ही प्रोसेस हो चुकी है और अब इसे बदला नहीं जा सकता। सुधार के लिए एडमिन से संपर्क करें।"
+    },
+    "entryCard": {
+      "approved": "स्वीकृत — अब बदलाव संभव नहीं",
+      "cancelled": "रद्द",
+      "editBtn": "बदलें"
+    }
+  },
+  "entryForm": {
+    "date": "तारीख",
+    "vehicleNoLabel": "Vehicle No.",
+    "type": "टाइप",
+    "selectType": "टाइप चुनें",
+    "loadUnload": "लोड / अनलोड",
+    "load": "लोड",
+    "unload": "अनलोड",
+    "company": "कंपनी",
+    "searchCompanyPlaceholder": "कंपनी खोजें...",
+    "selectCompany": "कंपनी चुनें",
+    "remark": "टिप्पणी",
+    "vehicleRequired": "वाहन नंबर ज़रूरी है।",
+    "typeRequired": "कृपया टाइप चुनें।",
+    "companyRequired": "कृपया कंपनी चुनें।",
+    "saveEntryDefault": "एंट्री सेव करें",
+    "saveAnyway": "फिर भी सेव करें",
+    "genericError": "कुछ गड़बड़ हुई। कृपया दोबारा कोशिश करें।",
+    "noCompaniesFound": "कोई कंपनी नहीं मिली।"
+  },
+  "owner": {
+    "portal": "ओनर पोर्टल",
+    "nav": {
+      "dashboard": "डैशबोर्ड",
+      "entries": "एंट्रीज़",
+      "companies": "कंपनियां",
+      "reports": "रिपोर्ट्स"
+    }
+  },
+  "admin": {
+    "searchPlaceholder": "वाहन, कंपनी, एंट्री खोजें...",
+    "nav": {
+      "sectionMain": "मुख्य",
+      "sectionManagement": "प्रबंधन",
+      "sectionReports": "रिपोर्ट्स",
+      "sectionSystem": "सिस्टम",
+      "dashboard": "डैशबोर्ड",
+      "entries": "एंट्रीज़",
+      "pendingApprovals": "स्वीकृति बाकी",
+      "companies": "कंपनियां",
+      "labour": "मजदूर",
+      "attendance": "हाजरी",
+      "reports": "रिपोर्ट्स",
+      "users": "यूज़र्स",
+      "settings": "सेटिंग्स",
+      "auditLogs": "ऑडिट लॉग"
+    },
+    "companiesPage": {
+      "title": "कंपनियां",
+      "addCompany": "+ कंपनी जोड़ें",
+      "searchPlaceholder": "कंपनी खोजें...",
+      "active": "सक्रिय",
+      "disabled": "निष्क्रिय",
+      "modalTitle": "कंपनी जोड़ें"
+    }
+  }
+}

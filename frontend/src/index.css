@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', 'Noto Sans Devanagari', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Vehicle-number fields are always plain English/Latin — they hold
+   registration plates, never translated text — so pin them to the Latin
+   font stack even when the rest of the UI is rendering Devanagari. */
+[lang='en'].field-vehicle-no,
+.field-vehicle-no [lang='en'] {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Visible keyboard focus everywhere, per spec section 37 accessibility */
+:focus-visible {
+  outline: 2px solid theme('colors.primary.600');
+  outline-offset: 2px;
+}

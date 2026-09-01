@@ -1,0 +1,10 @@
+{
+  "name": "sre-hamali-management",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deploy entrypoint only. Real code lives in backend/ and frontend/ — Railway (via Nixpacks) auto-detects this package.json at the repo root and runs these two scripts.",
+  "scripts": {
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install && npm --prefix backend run build && npm --prefix backend run prisma:generate",
+    "start": "npm --prefix backend run prisma:migrate:deploy && npm --prefix backend run start"
+  }
+}

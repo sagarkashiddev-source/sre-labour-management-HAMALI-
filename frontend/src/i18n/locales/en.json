@@ -1,0 +1,119 @@
+{
+  "common": {
+    "appName": "Sagar Roadways and Enterprises",
+    "logout": "Log out",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "search": "Search",
+    "loading": "Loading...",
+    "back": "Back",
+    "edit": "Edit",
+    "add": "Add",
+    "language": "Language"
+  },
+  "login": {
+    "title": "SAGAR ROADWAYS AND ENTERPRISES",
+    "tagline": "HAMALI MANAGEMENT",
+    "identifier": "Mobile / Email",
+    "password": "Password",
+    "loginButton": "LOGIN",
+    "signingIn": "Signing in...",
+    "error": "Invalid phone/email or password."
+  },
+  "labour": {
+    "nav": {
+      "home": "Home",
+      "entry": "Entry",
+      "history": "History",
+      "me": "Me"
+    },
+    "home": {
+      "greetingMorning": "Good Morning",
+      "greetingAfternoon": "Good Afternoon",
+      "greetingEvening": "Good Evening",
+      "addEntry": "+ ADD ENTRY",
+      "todaysEntries": "Today's Entries",
+      "noEntriesToday": "No entries yet today."
+    },
+    "history": {
+      "title": "My Entries",
+      "searchPlaceholder": "Search vehicle number...",
+      "noEntries": "No entries found."
+    },
+    "me": {
+      "title": "Me",
+      "logout": "Log Out"
+    },
+    "addEntry": {
+      "addTitle": "Add Work Entry",
+      "editTitle": "Edit Work Entry",
+      "saveEntry": "SAVE ENTRY",
+      "saveChanges": "SAVE CHANGES",
+      "savedTitle": "Entry Saved",
+      "savedDesc": "Your work entry has been saved successfully.",
+      "alreadyProcessed": "This entry has already been processed and can no longer be edited. Contact Admin for a correction."
+    },
+    "entryCard": {
+      "approved": "Approved — no longer editable",
+      "cancelled": "Cancelled",
+      "editBtn": "EDIT"
+    }
+  },
+  "entryForm": {
+    "date": "Date",
+    "vehicleNoLabel": "Vehicle No.",
+    "type": "Type",
+    "selectType": "Select Type",
+    "loadUnload": "Load / Unload",
+    "load": "Load",
+    "unload": "Unload",
+    "company": "Company",
+    "searchCompanyPlaceholder": "Search company...",
+    "selectCompany": "Select Company",
+    "remark": "Remark",
+    "vehicleRequired": "Vehicle number is required.",
+    "typeRequired": "Please select a type.",
+    "companyRequired": "Please select a company.",
+    "saveEntryDefault": "Save Entry",
+    "saveAnyway": "Save Anyway",
+    "genericError": "Something went wrong. Please try again.",
+    "noCompaniesFound": "No companies found."
+  },
+  "owner": {
+    "portal": "Owner Portal",
+    "nav": {
+      "dashboard": "Dashboard",
+      "entries": "Entries",
+      "companies": "Companies",
+      "reports": "Reports"
+    }
+  },
+  "admin": {
+    "searchPlaceholder": "Search vehicle, company, entry...",
+    "nav": {
+      "sectionMain": "Main",
+      "sectionManagement": "Management",
+      "sectionReports": "Reports",
+      "sectionSystem": "System",
+      "dashboard": "Dashboard",
+      "entries": "Entries",
+      "pendingApprovals": "Pending Approvals",
+      "companies": "Companies",
+      "labour": "Labour",
+      "attendance": "Attendance",
+      "reports": "Reports",
+      "users": "Users",
+      "settings": "Settings",
+      "auditLogs": "Audit Logs"
+    },
+    "companiesPage": {
+      "title": "Companies",
+      "addCompany": "+ Add Company",
+      "searchPlaceholder": "Search companies...",
+      "active": "Active",
+      "disabled": "Disabled",
+      "modalTitle": "Add Company"
+    }
+  }
+}
