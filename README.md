@@ -8,7 +8,7 @@ different frontends per your UI/UX spec's core principle.
 
 ```
 sre/
-├── backend/    Node/TypeScript/Express/Prisma/PostgreSQL API (Phases 1-4)
+├── backend/    Node/TypeScript/Express/Prisma/PostgreSQL API
 ├── frontend/   React/TypeScript/Tailwind/PWA (verified: builds & typechecks clean)
 ```
 
