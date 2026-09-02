@@ -1,4 +1,9 @@
 node_modules/
-dist/
+# NOT dist/ — Render's build->deploy handoff only carries forward files
+# that are visible to it as build output, and in practice that excludes
+# gitignored paths even though tsc creates dist/ successfully during the
+# Build phase. Un-ignoring it here is what makes `node dist/index.js`
+# (the Start Command) actually find something to run. See DEPLOY_RENDER.md
+# troubleshooting section: "Cannot find module .../backend/dist/index.js".
 .env
 *.log

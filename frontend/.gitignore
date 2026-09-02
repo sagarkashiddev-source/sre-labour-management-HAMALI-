@@ -1,5 +1,7 @@
 node_modules/
-dist/
+# NOT dist/ — same reason as backend/.gitignore: Render's build->deploy
+# handoff needs to see this committed-visible so the backend can serve it
+# at runtime (backend/src/index.ts serves frontend/dist as static files).
 dist-ssr/
 .env
 *.log

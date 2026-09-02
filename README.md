@@ -1,6 +1,6 @@
 # SRE — Sagar Roadways and Enterprises — Hamali Management System
 
-Full-stack replacement for the manual workflow.
+Full-stack replacement for the manual `SR HAMALI 2026-27.xlsx` workflow.
 Three roles (Admin, Owner, Labour) sharing one backend, with radically
 different frontends per your UI/UX spec's core principle.
 
@@ -40,9 +40,9 @@ role's app.
 > **`prisma:seed` is for this local database only.** It creates demo
 > accounts with the fixed, publicly-documented password above, and the
 > script itself refuses to run when `NODE_ENV=production` as a backstop.
-> Deploying for real? See [DEPLOY_RAILWAY.md](./DEPLOY_RAILWAY.md) §4 —
-> it uses `prisma:bootstrap-admin` instead, which never uses a hardcoded
-> password.
+> Deploying for real? See [DEPLOY_RAILWAY.md](./DEPLOY_RAILWAY.md) §4 or
+> [DEPLOY_RENDER.md](./DEPLOY_RENDER.md) §5 — both use
+> `prisma:bootstrap-admin` instead, which never uses a hardcoded password.
 
 ## The one finding that shaped everything
 
