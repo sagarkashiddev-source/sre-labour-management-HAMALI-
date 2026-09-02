@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:resolve-rolled-back": "prisma migrate resolve --rolled-back",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:bootstrap-admin": "ts-node prisma/bootstrapAdmin.ts",
     "import:companies": "ts-node prisma/importCompanies.ts",

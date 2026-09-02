@@ -95,6 +95,35 @@ Visit the generated URL — you'll land on `/login`. Log in with the Admin
 phone number and the password `prisma:bootstrap-admin` printed for you in
 step 4 (not a fixed demo password — there isn't one on this deployment).
 
+## Troubleshooting: "Error: P3009 — migrate found failed migrations"
+
+If deploy logs show the container crash-looping on `prisma migrate deploy`
+with `Error: P3009`, it means a migration is recorded in the production
+database's `_prisma_migrations` table as **started but never finished** —
+usually because it hit a constraint violation against real data partway
+through. `migrate deploy` refuses to run anything else (including
+migrations you've added since) until that's explicitly resolved. This is
+Prisma's own safety behavior, not a bug in this app, but it needs a manual,
+one-time step — it will not fix itself on redeploy.
+
+1. Read the failed migration's name from the log (e.g.
+   `The '20260821_add_duplicate_entry_guard' migration ... failed`).
+2. Check what that migration actually does — if the whole statement is a
+   single atomic DDL change (as all of Postgres's `CREATE INDEX`,
+   `ALTER TABLE ... DROP COLUMN`, etc. are, unless run `CONCURRENTLY`),
+   "failed" means it did NOT partially apply — nothing to clean up by hand.
+3. Mark it resolved, using the exact migration folder name from the log:
+   ```bash
+   railway run npm --prefix backend run prisma:migrate:resolve-rolled-back -- <migration_name>
+   ```
+4. Redeploy. `migrate deploy` will skip the rolled-back migration and apply
+   everything after it in order.
+
+(If you ever do hit a migration that failed midway through a *multi-statement*
+change, check the actual database state manually before resolving — you may
+need `--applied` instead of `--rolled-back`, or to hand-fix a partial change
+first. That's not the case for any migration currently in this repo.)
+
 ## A note on Railway itself
 
 Railway is a solid, easy fit for an internal tool like this one — usage-based
