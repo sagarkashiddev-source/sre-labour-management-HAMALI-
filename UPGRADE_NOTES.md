@@ -1,5 +1,48 @@
 # Upgrade notes — multi-language + companies
 
+## 0. Sep 2026 hardening pass (12-item priority list)
+
+Fixed, in order: (1) the `force` flag vs. hard duplicate-guard DB index
+contradiction — replaced with an advisory-lock transaction so forced
+same-day repeat entries (real in the data) actually work; (2) approved
+entries are now locked for every role including Admin, with a new
+Admin-only `PATCH /entries/:id/reopen` correction workflow (reason
+required, fully audited) — surfaced in the Admin Entries UI as "Reopen for
+Correction"; (3) a financial-data leak in the single-entry audit-history
+endpoint that skipped the redaction `listAuditLogs` applied; (4) a
+LabourProfile.id vs. User.id mix-up that silently broke the labour
+report's "Work" column for every labourer; (5) removed the dead
+`otherDeductionPct` field end-to-end rather than leaving it half-wired;
+(6) one shared `PrismaClient` singleton (`src/lib/prisma.ts`) instead of
+13 separate ones; (7) every DB update + its audit log now commits in one
+transaction, across all controllers; (8) a real Vitest suite (44 passing
+tests — jwt, password hashing, vehicle-number normalization, business-
+timezone formatting, amount-in-words, RBAC gating/select-shape logic,
+error handling, asyncHandler; `calculation.service.test.ts` needs a
+generated Prisma client to run, see its own comment); (9) disabling the
+last active Admin or your own account is now blocked; (10) removed the
+hardcoded demo password from the production bootstrap path — see
+`prisma/bootstrapAdmin.ts` and `DEPLOY_RAILWAY.md` §4; (11) three
+composite DB indexes matching the app's actual query shapes; (12) a UI
+pass fixing the Edit/Amount buttons that were still shown (and would
+fail) on locked approved entries, plus the itemized monthly "Bill"
+export (below) getting a real UI entry point on both the Admin and
+Owner Reports pages.
+
+**New in this pass: the itemized monthly Bill.** The two uploaded PDFs
+turned out to be two *different* report types, not one. The per-day hamali
+summary (Date/Amount/Deduction/Net/Present/Per-Person) already existed as
+`generateMonthlyExcel`/`generateMonthlyPdf`. The itemized GST invoice
+(SR.NO/DATE/VEHICLE.NO/TYPE/LOAD-UNLOAD/COMPANY/REMARK/AMOUNT, 18% GST,
+amount spelled out in words, bank details) did not — added as
+`computeMonthlyBillRows`/`computeMonthlyBillTotals` in `report.service.ts`,
+`generateMonthlyBillExcel`/`generateMonthlyBillPdf` in `export.service.ts`,
+a new `utils/numberToWords.ts` (Indian lakh/crore numbering, tested against
+the real April bill's exact total: 320311 → "THREE LAKH TWENTY THOUSAND
+THREE HUNDRED AND ELEVEN"), and `/reports/monthly-bill` + export routes.
+GST rate (18%) is a bill-format constant, not a `CalculationRule` field —
+it's unrelated to the per-entry company/labour deduction percentages.
+
 What changed in this pass, and how to pick it up.
 
 ## 1. Multi-language support (English / Hindi / Marathi)

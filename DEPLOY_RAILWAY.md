@@ -43,24 +43,45 @@ manually. If it doesn't auto-detect, set these explicitly in
 Prisma client. `npm run start` runs `prisma migrate deploy` — applying any
 pending migrations against the live database — then starts the server.)
 
-## 4. First deploy — seed the database once
+## 4. First deploy — create the real Admin account and companies list
 
-After the first successful deploy, run the seed **once** from your machine
-using the Railway CLI, so you get the Admin/Owner/Labour demo accounts and
-the 145 cleaned companies:
+**Do not run `prisma:seed` against this database.** That script creates
+demo Admin/Owner/Labour accounts with a fixed, publicly-documented password
+(`Password123!`, visible in this repo) — fine for a throwaway local dev
+database, but it would mean the real production Admin login is a password
+anyone with repo access already knows. The script itself now refuses to
+run when `NODE_ENV=production` as a backstop, but don't rely on that guard
+— just don't run it here.
+
+Instead, create the one real Admin account with a properly random,
+one-time-shown password:
 
 ```bash
 railway login
 railway link          # pick this project
-railway run npm --prefix backend run prisma:seed
+railway run npm --prefix backend run prisma:bootstrap-admin \
+  -e ADMIN_NAME="Sagar" -e ADMIN_PHONE="9922297341" -e ADMIN_EMAIL="admin@sre.local"
 ```
 
-If you already have real users/companies and just want the companies list
-added without touching anything else, use the safer import script instead:
+This prints a randomly generated password to your terminal **exactly
+once** — copy it into a password manager immediately; it is never stored
+anywhere and cannot be recovered by re-running the command. (If you'd
+rather supply your own password from a secrets manager instead of a
+generated one, set `ADMIN_PASSWORD` — it must be at least 12 characters.)
+Running it again after the Admin account already exists is a no-op that
+exits with an error rather than silently resetting the password.
+
+Then load the real companies list (safe to run any time — it only adds
+missing companies by name, never touches users or existing data):
 
 ```bash
 railway run npm --prefix backend run import:companies
 ```
+
+Once the app has an in-app "create user" flow available (Admin → Users),
+use the Admin account you just created to add the real Owner and Labour
+accounts through the UI, each with their own password — not through a
+seed script.
 
 ## 5. Domain
 
@@ -70,10 +91,9 @@ domain from the same screen later (add a CNAME at your DNS provider).
 
 ## 6. Logging in
 
-Visit the generated URL — you'll land on `/login`. Use the seeded demo
-accounts (`9922297341` / Admin, `9000000001` / Owner, `9000000101` /
-Labour, all password `Password123!`) to confirm it's live, then change
-those passwords or replace the accounts before handing it to real users.
+Visit the generated URL — you'll land on `/login`. Log in with the Admin
+phone number and the password `prisma:bootstrap-admin` printed for you in
+step 4 (not a fixed demo password — there isn't one on this deployment).
 
 ## A note on Railway itself
 

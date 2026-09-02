@@ -11,10 +11,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
-        name: 'Sagar Roadways and Enterprises',
+        name: 'SRE Hamali Management',
         short_name: 'SRE',
-        description: 'Sagar Roadways and Enterprises — Hamali work entry and management app',
-        theme_color: '#ffffff',
+        description: 'Sagar Roadways and Enterprises — work entry and management app',
+        theme_color: '#1e3a8a',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',

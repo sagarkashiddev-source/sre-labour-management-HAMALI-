@@ -7,10 +7,14 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:bootstrap-admin": "ts-node prisma/bootstrapAdmin.ts",
     "import:companies": "ts-node prisma/importCompanies.ts",
     "prisma:studio": "prisma studio"
   },
@@ -36,9 +40,11 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.14.0",
     "@types/pdfkit": "^0.13.9",
+    "@vitest/coverage-v8": "^4.1.11",
     "prisma": "^5.19.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^4.1.11"
   }
 }

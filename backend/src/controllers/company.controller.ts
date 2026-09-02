@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getOwnerPermission } from '../services/permission.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const listQuerySchema = z.object({
   search: z.string().optional(),
@@ -48,17 +46,20 @@ const companySchema = z.object({
 export async function createCompany(req: Request, res: Response) {
   await assertCanManageCompanies(req.user!.userId, req.user!.role);
   const data = companySchema.parse(req.body);
-  const company = await prisma.company.create({ data });
 
-  await prisma.auditLog.create({
-    data: {
-      userId: req.user!.userId,
-      action: 'COMPANY_CREATED',
-      entityType: 'Company',
-      entityId: company.id,
-      newValue: data,
-      ipAddress: req.ip,
-    },
+  const company = await prisma.$transaction(async (tx) => {
+    const c = await tx.company.create({ data });
+    await tx.auditLog.create({
+      data: {
+        userId: req.user!.userId,
+        action: 'COMPANY_CREATED',
+        entityType: 'Company',
+        entityId: c.id,
+        newValue: data,
+        ipAddress: req.ip,
+      },
+    });
+    return c;
   });
 
   return res.status(201).json({ company });
@@ -72,18 +73,20 @@ export async function updateCompany(req: Request, res: Response) {
   const existing = await prisma.company.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Company not found.');
 
-  const updated = await prisma.company.update({ where: { id }, data });
-
-  await prisma.auditLog.create({
-    data: {
-      userId: req.user!.userId,
-      action: 'COMPANY_UPDATED',
-      entityType: 'Company',
-      entityId: id,
-      oldValue: existing,
-      newValue: updated,
-      ipAddress: req.ip,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.company.update({ where: { id }, data });
+    await tx.auditLog.create({
+      data: {
+        userId: req.user!.userId,
+        action: 'COMPANY_UPDATED',
+        entityType: 'Company',
+        entityId: id,
+        oldValue: existing,
+        newValue: u,
+        ipAddress: req.ip,
+      },
+    });
+    return u;
   });
 
   return res.json({ company: updated });
@@ -92,6 +95,29 @@ export async function updateCompany(req: Request, res: Response) {
 export async function disableCompany(req: Request, res: Response) {
   await assertCanManageCompanies(req.user!.userId, req.user!.role);
   const { id } = req.params;
-  const company = await prisma.company.update({ where: { id }, data: { status: 'DISABLED' } });
+
+  const existing = await prisma.company.findUnique({ where: { id } });
+  if (!existing) throw new AppError(404, 'Company not found.');
+
+  const company = await prisma.$transaction(async (tx) => {
+    const c = await tx.company.update({ where: { id }, data: { status: 'DISABLED' } });
+    // This write previously had no audit log entry at all — a disabled
+    // company (which stops it from being selectable on new entries) is
+    // exactly the kind of change the audit trail exists to capture, same
+    // as COMPANY_CREATED / COMPANY_UPDATED above.
+    await tx.auditLog.create({
+      data: {
+        userId: req.user!.userId,
+        action: 'COMPANY_DISABLED',
+        entityType: 'Company',
+        entityId: id,
+        oldValue: { status: existing.status },
+        newValue: { status: 'DISABLED' },
+        ipAddress: req.ip,
+      },
+    });
+    return c;
+  });
+
   return res.json({ company });
 }

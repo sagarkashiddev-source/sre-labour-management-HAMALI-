@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DayRowDto, RangeTotalsDto, reportsApi } from '../../api/client';
+import { DayRowDto, RangeTotalsDto, MonthlyBillRowDto, MonthlyBillTotalsDto, reportsApi } from '../../api/client';
 import { Card } from '../../components/Card';
 
 const inr = (v: string | null) => (v === null ? '—' : `₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
@@ -13,6 +13,12 @@ export function AdminReports() {
   const [totals, setTotals] = useState<RangeTotalsDto | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [billNo, setBillNo] = useState('');
+  const [billDate, setBillDate] = useState('');
+  const [billRows, setBillRows] = useState<MonthlyBillRowDto[]>([]);
+  const [billTotals, setBillTotals] = useState<MonthlyBillTotalsDto | null>(null);
+  const [billLoading, setBillLoading] = useState(false);
+
   async function loadReport() {
     setLoading(true);
     try {
@@ -21,6 +27,17 @@ export function AdminReports() {
       setTotals(res.totals);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadBillPreview() {
+    setBillLoading(true);
+    try {
+      const res = await reportsApi.monthlyBill(month, year);
+      setBillRows(res.rows);
+      setBillTotals(res.totals);
+    } finally {
+      setBillLoading(false);
     }
   }
 
@@ -95,6 +112,98 @@ export function AdminReports() {
           </Card>
         </>
       )}
+
+      <Card className="space-y-4 p-5">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Monthly Bill</h2>
+          <p className="text-sm text-slate-500">
+            The itemized invoice (every entry across all companies, plus GST) — separate from the
+            day-level summary above. Bill No / Bill Date are optional and printed as typed, since
+            SRE assigns its own bill numbering.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Bill No</label>
+            <input
+              value={billNo}
+              onChange={(e) => setBillNo(e.target.value)}
+              placeholder="SRE 2026/27-000440"
+              className="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Bill Date</label>
+            <input
+              value={billDate}
+              onChange={(e) => setBillDate(e.target.value)}
+              placeholder="01/MAY/2026"
+              className="mt-1 w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+            />
+          </div>
+          <button onClick={loadBillPreview} className="rounded-lg bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-800">
+            Preview Bill
+          </button>
+        </div>
+
+        {billTotals && (
+          <>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <Metric label="Subtotal" value={inr(billTotals.subtotal)} />
+              <Metric label={`GST (${billTotals.gstRatePct}%)`} value={inr(billTotals.gstAmount)} />
+              <Metric label="Grand Total" value={inr(billTotals.grandTotal)} tone="success" />
+            </div>
+
+            <div className="flex gap-3">
+              <a
+                href={reportsApi.monthlyBillExcelUrl(month, year, billNo || undefined, billDate || undefined)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200"
+              >
+                Export Bill (Excel)
+              </a>
+              <a
+                href={reportsApi.monthlyBillPdfUrl(month, year, billNo || undefined, billDate || undefined)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200"
+              >
+                Export Bill (PDF)
+              </a>
+            </div>
+
+            <div className="max-h-96 overflow-auto rounded-lg border border-slate-200 dark:border-slate-800">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-900/50">
+                  <tr>
+                    <th className="px-4 py-2">Date</th>
+                    <th className="px-4 py-2">Vehicle</th>
+                    <th className="px-4 py-2">Type</th>
+                    <th className="px-4 py-2">Load/Unload</th>
+                    <th className="px-4 py-2">Company</th>
+                    <th className="px-4 py-2">Remark</th>
+                    <th className="px-4 py-2">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billRows.map((r, i) => (
+                    <tr key={i} className="border-t border-slate-100 dark:border-slate-800">
+                      <td className="px-4 py-2">{r.date}</td>
+                      <td className="px-4 py-2">{r.vehicleNo}</td>
+                      <td className="px-4 py-2">{r.vehicleType}</td>
+                      <td className="px-4 py-2">{r.loadUnload}</td>
+                      <td className="px-4 py-2">{r.companyName}</td>
+                      <td className="px-4 py-2">{r.remark ?? '-'}</td>
+                      <td className="px-4 py-2">{inr(r.amount)}</td>
+                    </tr>
+                  ))}
+                  {billRows.length === 0 && !billLoading && (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">No approved entries for this month.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Card>
     </div>
   );
 }

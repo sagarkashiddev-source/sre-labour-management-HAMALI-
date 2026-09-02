@@ -48,7 +48,6 @@ enum LoadUnload {
 
 model User {
   id           String     @id @default(uuid())
-  userCode     String?    @unique
   name         String
   phone        String     @unique
   email        String?    @unique
@@ -167,6 +166,16 @@ model WorkEntry {
   @@index([companyId])
   @@index([vehicleNo])
   @@index([status])
+  // Composite indexes added after reviewing the actual query shapes this
+  // app runs (see migrations/20260901_add_composite_indexes for the
+  // per-index reasoning) — each one matches a real WHERE+ORDER BY
+  // combination in entry.controller.ts / financial.controller.ts /
+  // report.service.ts, not a guess. The single-column indexes above are
+  // kept too, for the filter combinations these composites don't cover
+  // (e.g. companyId-only, vehicleNo-only searches).
+  @@index([status, date, createdAt], name: "work_entries_status_date_createdAt_idx")
+  @@index([vehicleNo, date, companyId, loadUnload], name: "work_entries_duplicate_check_idx")
+  @@index([createdById, status, date], name: "work_entries_createdById_status_date_idx")
   @@map("work_entries")
 }
 
@@ -223,7 +232,6 @@ model CalculationRule {
   effectiveFrom       DateTime @db.Date
   companyDeductionPct Decimal  @db.Decimal(5, 2)
   labourDeductionPct  Decimal  @db.Decimal(5, 2)
-  otherDeductionPct   Decimal  @db.Decimal(5, 2) @default(0)
   note                String?
   createdAt           DateTime @default(now())
 

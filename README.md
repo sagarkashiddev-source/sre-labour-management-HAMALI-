@@ -37,6 +37,13 @@ Log in with any seeded account — Admin `9922297341`, Owner `9000000001`,
 Labour `9000000101`, all password `Password123!` — and you'll land on that
 role's app.
 
+> **`prisma:seed` is for this local database only.** It creates demo
+> accounts with the fixed, publicly-documented password above, and the
+> script itself refuses to run when `NODE_ENV=production` as a backstop.
+> Deploying for real? See [DEPLOY_RAILWAY.md](./DEPLOY_RAILWAY.md) §4 —
+> it uses `prisma:bootstrap-admin` instead, which never uses a hardcoded
+> password.
+
 ## The one finding that shaped everything
 
 Your workbook's deduction logic **changed over time**: flat 30% (Mar-Apr),

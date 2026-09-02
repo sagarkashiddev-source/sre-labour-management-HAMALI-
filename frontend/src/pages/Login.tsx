@@ -35,7 +35,9 @@ export function LoginPage() {
         </div>
 
         <div className="mb-8 text-center">
-          <img src="/icons/icon-192.png" alt="Sagar Roadways and Enterprises" className="mx-auto mb-4 h-20 w-20 rounded-2xl object-contain shadow-card" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-700 text-lg font-bold text-white shadow-card">
+            SR
+          </div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50">{t('login.title')}</h1>
           <p className="mt-1 text-sm text-slate-500">{t('login.tagline')}</p>
         </div>

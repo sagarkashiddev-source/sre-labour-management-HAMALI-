@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Sagar Roadways and Enterprises",
+    "appName": "SRE",
     "logout": "Log out",
     "save": "Save",
     "cancel": "Cancel",
@@ -13,8 +13,8 @@
     "language": "Language"
   },
   "login": {
-    "title": "SAGAR ROADWAYS AND ENTERPRISES",
-    "tagline": "HAMALI MANAGEMENT",
+    "title": "HAMALI MANAGEMENT",
+    "tagline": "Manage Work. Track Everything.",
     "identifier": "Mobile / Email",
     "password": "Password",
     "loginButton": "LOGIN",

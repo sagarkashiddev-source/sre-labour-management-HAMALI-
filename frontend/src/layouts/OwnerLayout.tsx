@@ -18,7 +18,7 @@ export function OwnerLayout() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
       <aside className="hidden w-56 flex-shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 md:flex md:flex-col">
         <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-6 dark:border-slate-800">
-          <img src="/icons/icon-192.png" alt="Sagar Roadways and Enterprises" className="h-8 w-8 rounded-lg object-contain" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-700 text-sm font-bold text-white">SR</div>
           <span className="text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100">SRE</span>
         </div>
         <nav className="flex-1 space-y-0.5 px-3 py-5">

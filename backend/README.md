@@ -185,9 +185,19 @@ cp .env.example .env
 npm install
 npm run prisma:generate
 npm run prisma:migrate      # creates the database tables
-npm run prisma:seed         # demo users + companies + calculation rules
+npm run prisma:seed         # LOCAL DEV ONLY — see warning below
 npm run dev                 # starts on http://localhost:4000
 ```
+
+> **Never run `prisma:seed` against a production/shared database.** It
+> creates demo accounts with a fixed password documented right here in
+> this README (`Password123!`) — anyone who can read this file can log
+> in. It refuses to run when `NODE_ENV=production` as a backstop, but
+> treat that as a safety net, not the plan. For a real deployment, use
+> `npm run prisma:bootstrap-admin` instead (see the root
+> [DEPLOY_RAILWAY.md](../DEPLOY_RAILWAY.md)), which creates only the
+> Admin account with either an operator-supplied password or a randomly
+> generated one printed exactly once.
 
 Demo logins after seeding (all password `Password123!`):
 

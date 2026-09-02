@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
 import { verifyPassword } from '../auth/password';
 import { signToken } from '../auth/jwt';
 import { env } from '../config/env';
 import { AppError } from '../middleware/error.middleware';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Phone or email is required.'),

@@ -1,6 +1,5 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 const zero = () => new Prisma.Decimal(0);
 const dateKey = (d: Date) => d.toISOString().slice(0, 10);
@@ -121,6 +120,70 @@ export async function computeMonthlyReport(month: number, year: number) {
   return { month, year, days: rows, totals: sumRows(rows) };
 }
 
+export interface MonthlyBillRow {
+  date: string;
+  vehicleNo: string;
+  vehicleType: string;
+  loadUnload: string;
+  companyName: string;
+  remark: string | null;
+  amount: Prisma.Decimal;
+}
+
+export interface MonthlyBillTotals {
+  subtotal: Prisma.Decimal;
+  gstRatePct: number;
+  gstAmount: Prisma.Decimal;
+  grandTotal: Prisma.Decimal;
+}
+
+// GST rate on the itemized monthly bill. Reproduces the real April 2026
+// bill exactly: subtotal 271450 -> GST 48861 -> total 320311, and
+// 48861 / 271450 = 0.18 exactly, so 18% (not derived from any config —
+// this is the flat rate the business has used on every bill, distinct
+// from CalculationRule's company/labour deduction percentages, which are
+// a completely separate concept applied per-entry before this bill is
+// ever generated).
+const BILL_GST_RATE_PCT = 18;
+
+/**
+ * Itemized entries across the WHOLE month (every company, not filtered to
+ * one) — this is the "Bill" document (spec's second real PDF format):
+ * SAGAR ROADWAYS AND ENTERPRISES billing their client for the month's
+ * hamali work, one row per work entry, GST added on top, total spelled
+ * out in words. Distinct from computeCompanyReport (which DOES filter to
+ * one company) and computeMonthlyReport (which is day-level aggregates
+ * for the internal per-day hamali summary, not itemized).
+ */
+export async function computeMonthlyBillRows(month: number, year: number): Promise<MonthlyBillRow[]> {
+  const { from, to } = monthRange(month, year);
+
+  const entries = await prisma.workEntry.findMany({
+    where: { ...APPROVED, date: { gte: from, lte: to } },
+    include: { financial: true, vehicleType: true, company: true },
+    orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+  });
+
+  return entries
+    .filter((e: { financial: unknown }) => e.financial)
+    .map((e: (typeof entries)[number]) => ({
+      date: dateKey(e.date),
+      vehicleNo: e.vehicleNo,
+      vehicleType: e.vehicleType.name,
+      loadUnload: e.loadUnload,
+      companyName: e.company.name,
+      remark: e.remark,
+      amount: e.financial!.amount,
+    }));
+}
+
+export function computeMonthlyBillTotals(rows: MonthlyBillRow[]): MonthlyBillTotals {
+  const subtotal = rows.reduce((acc, r) => acc.add(r.amount), zero());
+  const gstAmount = subtotal.mul(BILL_GST_RATE_PCT).div(100).toDecimalPlaces(2);
+  const grandTotal = subtotal.add(gstAmount);
+  return { subtotal, gstRatePct: BILL_GST_RATE_PCT, gstAmount, grandTotal };
+}
+
 export interface CompanyReportRow {
   date: string;
   vehicleNo: string;
@@ -177,8 +240,27 @@ export interface LabourReportRow {
  * entries they personally logged (that's just "Work" / entriesLogged,
  * informational only, per spec section 17's columns: Date, Work,
  * Attendance, Calculated Payment).
+ *
+ * IMPORTANT — two different ids, not one:
+ *   - `labourProfileId` is LabourProfile.id. DailyAttendance.labourId is a
+ *     foreign key to THIS id.
+ *   - `userId` is User.id (the same labourer's login account).
+ *     WorkEntry.createdById is a foreign key to THIS id, not to
+ *     LabourProfile.id.
+ * They are different UUIDs (LabourProfile has its own generated `id`,
+ * separate from its `userId` column). A previous version of this function
+ * took a single `labourId` and used it for both queries — that silently
+ * broke the "Work" (entriesLogged) column for every labourer, since a
+ * WorkEntry.createdById lookup keyed on LabourProfile.id can never match a
+ * real row. Taking both ids explicitly, by name, makes that mismatch
+ * impossible to reintroduce by accident.
  */
-export async function computeLabourReport(labourId: string, month: number, year: number) {
+export async function computeLabourReport(
+  labourProfileId: string,
+  userId: string,
+  month: number,
+  year: number,
+) {
   const { from, to } = monthRange(month, year);
 
   const dayRows = await computeDailyRows(from, to);
@@ -187,11 +269,11 @@ export async function computeLabourReport(labourId: string, month: number, year:
   const [entryCounts, attendance] = await Promise.all([
     prisma.workEntry.groupBy({
       by: ['date'],
-      where: { ...APPROVED, date: { gte: from, lte: to }, createdById: labourId },
+      where: { ...APPROVED, date: { gte: from, lte: to }, createdById: userId },
       _count: { _all: true },
     }),
     prisma.dailyAttendance.findMany({
-      where: { labourId, date: { gte: from, lte: to } },
+      where: { labourId: labourProfileId, date: { gte: from, lte: to } },
       orderBy: { date: 'asc' },
     }),
   ]);
@@ -213,5 +295,5 @@ export async function computeLabourReport(labourId: string, month: number, year:
   const totalPayment = rows.reduce((acc, r) => acc.add(r.calculatedPayment), zero());
   const daysPresent = rows.filter((r) => r.present).length;
 
-  return { labourId, month, year, rows, totals: { totalPayment, daysPresent } };
+  return { labourId: labourProfileId, month, year, rows, totals: { totalPayment, daysPresent } };
 }

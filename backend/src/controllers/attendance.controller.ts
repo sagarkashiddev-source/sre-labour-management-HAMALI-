@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 /**
  * Attendance is recorded here as its own manual daily action — NOT derived
@@ -32,26 +30,30 @@ export async function setDayAttendance(req: Request, res: Response) {
   });
   const presentSet = new Set(presentLabourIds);
 
-  await prisma.$transaction(
-    activeLabour.map((l: { id: string }) =>
+  // Same atomicity rule as everywhere else: the roster upserts and their
+  // audit log entry commit as one unit. This uses the array form of
+  // $transaction (all statements in one batch) rather than the interactive
+  // callback form used elsewhere, since every statement here is already a
+  // plain Prisma call with no branching logic between them.
+  await prisma.$transaction([
+    ...activeLabour.map((l: { id: string }) =>
       prisma.dailyAttendance.upsert({
         where: { date_labourId: { date, labourId: l.id } },
         create: { date, labourId: l.id, present: presentSet.has(l.id) },
         update: { present: presentSet.has(l.id) },
       }),
     ),
-  );
-
-  await prisma.auditLog.create({
-    data: {
-      userId: req.user!.userId,
-      action: 'ATTENDANCE_SET',
-      entityType: 'DailyAttendance',
-      entityId: date.toISOString().slice(0, 10),
-      newValue: { date: date.toISOString().slice(0, 10), presentCount: presentSet.size },
-      ipAddress: req.ip,
-    },
-  });
+    prisma.auditLog.create({
+      data: {
+        userId: req.user!.userId,
+        action: 'ATTENDANCE_SET',
+        entityType: 'DailyAttendance',
+        entityId: date.toISOString().slice(0, 10),
+        newValue: { date: date.toISOString().slice(0, 10), presentCount: presentSet.size },
+        ipAddress: req.ip,
+      },
+    }),
+  ]);
 
   return res.json({ date: date.toISOString().slice(0, 10), presentCount: presentSet.size });
 }

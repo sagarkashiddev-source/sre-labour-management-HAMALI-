@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getOwnerPermission } from '../services/permission.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const listQuerySchema = z.object({
   entityType: z.string().optional(),
@@ -100,6 +99,17 @@ export async function getEntityHistory(req: Request, res: Response) {
   const { entityType, entityId } = entityHistoryParamsSchema.parse(req.params);
   const { userId, role } = req.user!;
 
+  // Same redaction rule as listAuditLogs, and for the same reason: an Owner
+  // can legitimately have canViewAuditLogsLimited=true while
+  // canViewFinancials=false (spec's "permissions in addition to role").
+  // This endpoint used to skip that redaction entirely — a direct
+  // GET /api/audit-logs/history/EntryFinancial/:id call returned full
+  // amount/oldValue/newValue regardless of canViewFinancials, leaking
+  // exactly the data listAuditLogs was careful to hide. Applying the same
+  // check here closes that gap rather than relying on the other endpoint
+  // to be the only door in.
+  let redactFinancialValues = false;
+
   if (role === 'OWNER') {
     const perm = await getOwnerPermission(userId);
     if (!perm?.canViewAuditLogsLimited) {
@@ -108,6 +118,7 @@ export async function getEntityHistory(req: Request, res: Response) {
     if (!OWNER_VISIBLE_ENTITY_TYPES.includes(entityType)) {
       throw new AppError(403, 'You do not have permission to view that type of audit log.');
     }
+    redactFinancialValues = !perm?.canViewFinancials;
   }
 
   const logs = await prisma.auditLog.findMany({
@@ -116,5 +127,12 @@ export async function getEntityHistory(req: Request, res: Response) {
     orderBy: { createdAt: 'asc' },
   });
 
-  return res.json({ entityType, entityId, logs });
+  const shaped = logs.map((log: (typeof logs)[number]) => {
+    if (redactFinancialValues && log.entityType === 'EntryFinancial') {
+      return { ...log, oldValue: null, newValue: { note: 'Financial details hidden.' } };
+    }
+    return log;
+  });
+
+  return res.json({ entityType, entityId, logs: shaped });
 }

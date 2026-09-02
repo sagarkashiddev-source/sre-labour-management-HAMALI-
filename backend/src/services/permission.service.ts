@@ -1,6 +1,5 @@
-import { PrismaClient, OwnerPermission } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { OwnerPermission } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 /**
  * Fetches an Owner's permission flags. Returns null for non-owners.

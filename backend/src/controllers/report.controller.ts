@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getOwnerPermission } from '../services/permission.service';
 import {
@@ -8,10 +7,11 @@ import {
   computeMonthlyReport,
   computeCompanyReport,
   computeLabourReport,
+  computeMonthlyBillRows,
+  computeMonthlyBillTotals,
 } from '../services/report.service';
-import { generateMonthlyExcel, generateMonthlyPdf } from '../services/export.service';
-
-const prisma = new PrismaClient();
+import { generateMonthlyExcel, generateMonthlyPdf, generateMonthlyBillExcel, generateMonthlyBillPdf } from '../services/export.service';
+import { prisma } from '../lib/prisma';
 
 // -----------------------------------------------------------------------
 // Permission gates — mirrors spec section 47's matrix exactly: Admin
@@ -92,6 +92,55 @@ export async function exportMonthlyPdf(req: Request, res: Response) {
 }
 
 // -----------------------------------------------------------------------
+// Monthly Bill (itemized, GST-added invoice — the other real document
+// format: SAGAR ROADWAYS AND ENTERPRISES billing their client for the
+// month's work. Distinct from /monthly above, which is the internal
+// day-level hamali summary.)
+// -----------------------------------------------------------------------
+
+const billMetaSchema = z.object({
+  billNo: z.string().max(100).optional(),
+  billDate: z.string().max(50).optional(),
+});
+
+export async function getMonthlyBill(req: Request, res: Response) {
+  const { userId, role } = req.user!;
+  await assertCanViewFinancialReports(userId, role as 'ADMIN' | 'OWNER');
+  const { month, year } = monthYearSchema.parse(req.query);
+  const rows = await computeMonthlyBillRows(month, year);
+  const totals = computeMonthlyBillTotals(rows);
+  return res.json({ month, year, rows, totals });
+}
+
+export async function exportMonthlyBillExcel(req: Request, res: Response) {
+  const { userId, role } = req.user!;
+  await assertCanExport(userId, role as 'ADMIN' | 'OWNER', 'excel');
+  const { month, year } = monthYearSchema.parse(req.query);
+  const meta = billMetaSchema.parse(req.query);
+  const rows = await computeMonthlyBillRows(month, year);
+  const totals = computeMonthlyBillTotals(rows);
+
+  const buffer = await generateMonthlyBillExcel(month, year, rows, totals, meta);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="SRE_Bill_${month}_${year}.xlsx"`);
+  return res.send(Buffer.from(buffer));
+}
+
+export async function exportMonthlyBillPdf(req: Request, res: Response) {
+  const { userId, role } = req.user!;
+  await assertCanExport(userId, role as 'ADMIN' | 'OWNER', 'pdf');
+  const { month, year } = monthYearSchema.parse(req.query);
+  const meta = billMetaSchema.parse(req.query);
+  const rows = await computeMonthlyBillRows(month, year);
+  const totals = computeMonthlyBillTotals(rows);
+
+  const buffer = await generateMonthlyBillPdf(month, year, rows, totals, meta);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="SRE_Bill_${month}_${year}.pdf"`);
+  return res.send(buffer);
+}
+
+// -----------------------------------------------------------------------
 // Company
 // -----------------------------------------------------------------------
 
@@ -131,9 +180,13 @@ export async function getLabourReport(req: Request, res: Response) {
   await assertCanViewFinancialReports(userId, role as 'ADMIN' | 'OWNER');
   const { labourId, month, year } = labourReportSchema.parse(req.query);
 
-  const labour = await prisma.labourProfile.findUnique({ where: { id: labourId } });
+  // Fetch userId alongside the LabourProfile lookup — see computeLabourReport's
+  // doc comment for why passing only LabourProfile.id silently breaks the
+  // report's "Work" column (WorkEntry.createdById is keyed on User.id, not
+  // LabourProfile.id).
+  const labour = await prisma.labourProfile.findUnique({ where: { id: labourId }, select: { userId: true } });
   if (!labour) throw new AppError(404, 'Labourer not found.');
 
-  const report = await computeLabourReport(labourId, month, year);
+  const report = await computeLabourReport(labourId, labour.userId, month, year);
   return res.json(report);
 }

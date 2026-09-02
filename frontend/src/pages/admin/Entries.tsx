@@ -37,20 +37,50 @@ export function AdminEntries() {
   }
 
   async function handleUpdate(entryId: string, values: Partial<EntryFormValues>) {
-    await entriesApi.update(entryId, values as any);
-    setModal(null);
-    await refresh();
+    try {
+      await entriesApi.update(entryId, values as any);
+      setModal(null);
+      await refresh();
+    } catch (err: any) {
+      alert(err.message);
+    }
   }
 
   async function handleCancel(entry: WorkEntry) {
     if (!confirm('Cancel this entry? It will remain in history but no longer appear in normal reports.')) return;
-    await entriesApi.cancel(entry.id);
-    await refresh();
+    try {
+      await entriesApi.cancel(entry.id);
+      await refresh();
+    } catch (err: any) {
+      alert(err.message);
+    }
   }
 
   async function handleApprove(entry: WorkEntry) {
     try {
       await entriesApi.approve(entry.id);
+      await refresh();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
+  async function handleReopen(entry: WorkEntry) {
+    // A reason is required server-side (see reopenEntry) — asking here
+    // rather than letting the request round-trip and fail keeps this a
+    // single step instead of two.
+    const reason = prompt(
+      `Reopen ${entry.vehicleNo} (${entry.date.slice(0, 10)}) for correction?\n\n` +
+        'This puts the entry back to Pending so it — and its amount — can be edited, then it will need to be approved again.\n\n' +
+        'Reason (required):',
+    );
+    if (reason === null) return; // cancelled
+    if (reason.trim().length < 3) {
+      alert('Please enter a reason (at least 3 characters) to reopen an approved entry.');
+      return;
+    }
+    try {
+      await entriesApi.reopen(entry.id, reason.trim());
       await refresh();
     } catch (err: any) {
       alert(err.message);
@@ -111,8 +141,22 @@ export function AdminEntries() {
                     <td className="px-5 py-2.5">{inr(e.financial?.amount)}</td>
                     <td className="px-5 py-2.5"><StatusBadge status={e.status} /></td>
                     <td className="space-x-2 whitespace-nowrap px-5 py-2.5">
-                      <button onClick={() => setModal({ kind: 'edit', entry: e })} className="text-xs font-semibold text-primary-700">Edit</button>
-                      <button onClick={() => setModal({ kind: 'amount', entry: e })} className="text-xs font-semibold text-primary-700">Amount</button>
+                      {e.status === 'APPROVED' ? (
+                        // Approved entries are locked (see backend
+                        // entry.controller.ts updateEntry / financial.controller.ts
+                        // upsertFinancial) — showing Edit/Amount here would let an
+                        // Admin fill out a form that's guaranteed to fail on submit.
+                        // Reopen is the only way back in, and it's deliberately a
+                        // separate, reasoned step rather than a silent edit.
+                        <button onClick={() => handleReopen(e)} className="text-xs font-semibold text-warning-700">
+                          Reopen for Correction
+                        </button>
+                      ) : (
+                        <>
+                          <button onClick={() => setModal({ kind: 'edit', entry: e })} className="text-xs font-semibold text-primary-700">Edit</button>
+                          <button onClick={() => setModal({ kind: 'amount', entry: e })} className="text-xs font-semibold text-primary-700">Amount</button>
+                        </>
+                      )}
                       {e.status === 'PENDING' && (
                         <button onClick={() => handleApprove(e)} className="text-xs font-semibold text-success-700">Approve</button>
                       )}

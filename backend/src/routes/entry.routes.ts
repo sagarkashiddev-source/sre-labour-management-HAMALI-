@@ -9,6 +9,7 @@ import {
   updateEntry,
   cancelEntry,
   approveEntry,
+  reopenEntry,
 } from '../controllers/entry.controller';
 import { upsertFinancial, previewFinancial } from '../controllers/financial.controller';
 
@@ -31,6 +32,11 @@ router.patch('/:id', asyncHandler(updateEntry));
 // controller for the ADMIN vs. "configurable Owner" split.
 router.patch('/:id/cancel', requireRole('ADMIN', 'OWNER'), asyncHandler(cancelEntry));
 router.patch('/:id/approve', requireRole('ADMIN', 'OWNER'), asyncHandler(approveEntry));
+
+// Reopening an approved entry for correction is ADMIN-only, full stop — not
+// even an Owner granted every other financial permission can do this. See
+// reopenEntry() for why (locking approved entries is the whole point).
+router.patch('/:id/reopen', requireRole('ADMIN'), asyncHandler(reopenEntry));
 
 // Financials: never reachable by LABOUR, enforced at the route level (not
 // just inside the controller) since this is the single hardest boundary

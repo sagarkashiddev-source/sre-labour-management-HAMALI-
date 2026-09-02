@@ -1,11 +1,9 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { Prisma, PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getOwnerPermission } from '../services/permission.service';
 import { calculateEntryFinancials, getActiveRuleForDate } from '../services/calculation.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const amountSchema = z.object({
   amount: z.coerce
@@ -49,6 +47,16 @@ export async function upsertFinancial(req: Request, res: Response) {
   if (entry.status === 'CANCELLED') {
     throw new AppError(400, 'Cannot set an amount on a cancelled entry.');
   }
+  // Approved entries are locked, same as their operational fields (see
+  // entry.controller.ts updateEntry) — the amount is exactly the field a
+  // silent post-approval edit would matter most for. Admin must explicitly
+  // reopen the entry (POST /entries/:id/reopen) before the amount can change.
+  if (entry.status === 'APPROVED') {
+    throw new AppError(
+      403,
+      'This entry is approved and locked. Ask an Admin to reopen it for correction before changing the amount.',
+    );
+  }
 
   const rule = await getActiveRuleForDate(entry.date);
   const companyPct = body.companyDeductionPctOverride ?? Number(rule.companyDeductionPct);
@@ -58,41 +66,49 @@ export async function upsertFinancial(req: Request, res: Response) {
 
   const oldAmount = entry.financial?.amount ?? null;
 
-  const financial = await prisma.entryFinancial.upsert({
-    where: { workEntryId: id },
-    create: {
-      workEntryId: id,
-      amount: calc.amount,
-      companyDeductionPct: calc.companyDeductionPct,
-      companyDeduction: calc.companyDeduction,
-      balanceAfterCompany: calc.balanceAfterCompany,
-      labourDeductionPct: calc.labourDeductionPct,
-      labourDeduction: calc.labourDeduction,
-      netAmount: calc.netAmount,
-      createdById: userId,
-    },
-    update: {
-      amount: calc.amount,
-      companyDeductionPct: calc.companyDeductionPct,
-      companyDeduction: calc.companyDeduction,
-      balanceAfterCompany: calc.balanceAfterCompany,
-      labourDeductionPct: calc.labourDeductionPct,
-      labourDeduction: calc.labourDeduction,
-      netAmount: calc.netAmount,
-      updatedById: userId,
-    },
-  });
+  const financial = await prisma.$transaction(async (tx) => {
+    const f = await tx.entryFinancial.upsert({
+      where: { workEntryId: id },
+      create: {
+        workEntryId: id,
+        amount: calc.amount,
+        companyDeductionPct: calc.companyDeductionPct,
+        companyDeduction: calc.companyDeduction,
+        balanceAfterCompany: calc.balanceAfterCompany,
+        labourDeductionPct: calc.labourDeductionPct,
+        labourDeduction: calc.labourDeduction,
+        netAmount: calc.netAmount,
+        createdById: userId,
+      },
+      update: {
+        amount: calc.amount,
+        companyDeductionPct: calc.companyDeductionPct,
+        companyDeduction: calc.companyDeduction,
+        balanceAfterCompany: calc.balanceAfterCompany,
+        labourDeductionPct: calc.labourDeductionPct,
+        labourDeduction: calc.labourDeduction,
+        netAmount: calc.netAmount,
+        updatedById: userId,
+      },
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: oldAmount === null ? 'AMOUNT_SET' : 'AMOUNT_CHANGED',
-      entityType: 'EntryFinancial',
-      entityId: id,
-      oldValue: oldAmount === null ? Prisma.JsonNull : { amount: oldAmount.toString() } as Prisma.InputJsonValue,
-      newValue: { amount: calc.amount.toString(), netAmount: calc.netAmount.toString() } as Prisma.InputJsonValue,
-      ipAddress: req.ip,
-    },
+    // Atomic with the write above — this is THE most important audit trail
+    // in the whole system (it's literally what the money says), so it gets
+    // the same "commit together or not at all" guarantee as every other
+    // critical update.
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: oldAmount === null ? 'AMOUNT_SET' : 'AMOUNT_CHANGED',
+        entityType: 'EntryFinancial',
+        entityId: id,
+        oldValue: oldAmount === null ? null : { amount: oldAmount.toString() },
+        newValue: { amount: calc.amount.toString(), netAmount: calc.netAmount.toString() },
+        ipAddress: req.ip,
+      },
+    });
+
+    return f;
   });
 
   return res.json({

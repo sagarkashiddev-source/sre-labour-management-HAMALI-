@@ -1,0 +1,31 @@
+-- Fixes: "force" (override duplicate warning) vs. hard unique index contradiction.
+--
+-- The previous migration (20260821_add_duplicate_entry_guard) added a
+-- Postgres partial UNIQUE INDEX on (date, vehicleNo, companyId, loadUnload)
+-- WHERE status != 'CANCELLED', to close a check-then-insert race condition
+-- in entry.controller.ts.
+--
+-- That was wrong: it is a hard, unconditional DB constraint, but the app's
+-- own createEntry() flow lets a user pass `force: true` to explicitly
+-- confirm "yes, create this duplicate anyway" — and the real business data
+-- shows this is a *legitimate, common* case, not just an edge case: the
+-- same vehicle can make several identical trips for the same company on
+-- the same day (e.g. MH14HG5577 UNLOAD GABRIAL W/H appears 4 times on a
+-- single day in April's actual billing data). With the unique index in
+-- place, every one of those forced, user-confirmed inserts after the first
+-- would fail with an ugly P2002/500 instead of succeeding, regardless of
+-- `force`. A DB constraint cannot see the application's `force` flag, so
+-- it can never correctly encode "block accidents, allow confirmed repeats."
+--
+-- This migration drops that index. The race condition it was guarding
+-- against is now closed differently, at the application layer: createEntry()
+-- wraps the duplicate-check + insert in a single DB transaction guarded by
+-- a Postgres advisory lock keyed on (date, vehicleNo, companyId, loadUnload),
+-- so two near-simultaneous requests for the same key are serialized and the
+-- second one sees the first one's row before deciding whether to warn or
+-- (if forced) proceed. See entry.controller.ts createEntry() for the
+-- corresponding code change.
+--
+-- Non-destructive: only drops an index, touches no data.
+
+DROP INDEX IF EXISTS "work_entries_duplicate_guard";

@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { entrySelectFor } from '../middleware/rbac.middleware';
 import { getOwnerPermission } from '../services/permission.service';
 import { normalizeVehicleNo, isPlausibleVehicleNo } from '../utils/normalize';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 // -----------------------------------------------------------------------
 // Validation
@@ -134,22 +133,11 @@ export async function getEntry(req: Request, res: Response) {
 // Create
 // -----------------------------------------------------------------------
 
-async function findDuplicate(
-  date: Date,
-  vehicleNo: string,
-  companyId: string,
-  loadUnload: 'LOAD' | 'UNLOAD',
-) {
-  return prisma.workEntry.findFirst({
-    where: {
-      date,
-      vehicleNo,
-      companyId,
-      loadUnload,
-      status: { not: 'CANCELLED' },
-    },
-    select: { id: true, createdAt: true },
-  });
+// Thrown inside the createEntry transaction to abort the insert and signal
+// "ask the user to confirm" back out to the HTTP handler, without letting a
+// duplicate-warning response leak out as a committed DB write.
+class DuplicateNeedsConfirmation {
+  constructor(public duplicateEntryId: string) {}
 }
 
 export async function createEntry(req: Request, res: Response) {
@@ -170,17 +158,38 @@ export async function createEntry(req: Request, res: Response) {
     throw new AppError(400, 'Please select a valid type.');
   }
 
-  const duplicate = await findDuplicate(body.date, vehicleNo, body.companyId, body.loadUnload);
-  if (duplicate && !body.force) {
-    return res.status(409).json({
-      warning: 'A similar entry already exists. Are you sure you want to continue?',
-      duplicateEntryId: duplicate.id,
-    });
-  }
+  // Duplicate check + insert happen inside one transaction, serialized by a
+  // Postgres advisory lock keyed on (date, vehicleNo, companyId, loadUnload).
+  // This closes the check-then-insert race condition WITHOUT a hard DB
+  // unique constraint: a real DB constraint can't see the `force` flag, so
+  // it can't tell "accidental double-submit" from "user confirmed this
+  // repeat trip is real" — and the business genuinely has same-day repeat
+  // trips (same vehicle/company/load-unload, several times) that must be
+  // allowed through once force=true. The advisory lock only serializes
+  // concurrent requests for the same key; it never blocks a forced create.
+  const lockKey = `${body.date.toISOString()}|${vehicleNo}|${body.companyId}|${body.loadUnload}`;
 
-  let entry;
-  try {
-    entry = await prisma.workEntry.create({
+  const entry = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const duplicate = await tx.workEntry.findFirst({
+      where: {
+        date: body.date,
+        vehicleNo,
+        companyId: body.companyId,
+        loadUnload: body.loadUnload,
+        status: { not: 'CANCELLED' },
+      },
+      select: { id: true, createdAt: true },
+    });
+
+    if (duplicate && !body.force) {
+      // Signal "needs confirmation" out of the transaction via a thrown
+      // sentinel rather than a raw HTTP response, since we're inside $transaction.
+      throw new DuplicateNeedsConfirmation(duplicate.id);
+    }
+
+    const created = await tx.workEntry.create({
       data: {
         date: body.date,
         vehicleNo,
@@ -192,32 +201,39 @@ export async function createEntry(req: Request, res: Response) {
         status: 'PENDING',
       },
     });
-  } catch (err) {
-    // Race condition: two near-simultaneous requests both passed the
-    // findDuplicate() check above before either committed. The database's
-    // partial unique index (see prisma/migrations/20260821_add_duplicate_entry_guard)
-    // is the actual source of truth here — this converts that constraint
-    // violation into the same friendly warning instead of a raw 500.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      const raceDuplicate = await findDuplicate(body.date, vehicleNo, body.companyId, body.loadUnload);
-      return res.status(409).json({
-        warning: 'A similar entry already exists. Are you sure you want to continue?',
-        duplicateEntryId: raceDuplicate?.id,
-      });
-    }
-    throw err;
-  }
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'ENTRY_CREATED',
-      entityType: 'WorkEntry',
-      entityId: entry.id,
-      newValue: { vehicleNo, date: body.date, companyId: body.companyId, loadUnload: body.loadUnload },
-      ipAddress: req.ip,
-    },
+    // Audit log write lives INSIDE the same transaction as the insert — see
+    // the module-level note above DuplicateNeedsConfirmation / the other
+    // controllers in this file: a DB write and its audit-log entry must
+    // commit together or not at all, for a system whose whole point is a
+    // trustworthy audit trail. Previously this was a second, separate
+    // `await prisma.auditLog.create(...)` call after the transaction had
+    // already committed — if the process crashed or the DB connection
+    // dropped in between, the entry would exist with no audit record of
+    // its own creation.
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: 'ENTRY_CREATED',
+        entityType: 'WorkEntry',
+        entityId: created.id,
+        newValue: { vehicleNo, date: body.date, companyId: body.companyId, loadUnload: body.loadUnload },
+        ipAddress: req.ip,
+      },
+    });
+
+    return created;
+  }).catch((err) => {
+    if (err instanceof DuplicateNeedsConfirmation) return err;
+    throw err;
   });
+
+  if (entry instanceof DuplicateNeedsConfirmation) {
+    return res.status(409).json({
+      warning: 'A similar entry already exists. Are you sure you want to continue?',
+      duplicateEntryId: entry.duplicateEntryId,
+    });
+  }
 
   return res.status(201).json({ entry: { id: entry.id, status: entry.status } });
 }
@@ -236,18 +252,30 @@ export async function updateEntry(req: Request, res: Response) {
     throw new AppError(404, 'Entry not found.');
   }
 
+  // APPROVED entries are locked for EVERY role, including ADMIN — not just
+  // Labour. An approved entry has already been counted in a report/bill;
+  // silently editing it in place would recreate the exact "silently
+  // overwritten history" problem this whole system exists to fix (see
+  // schema.prisma's note on CalculationRule). The only way back in is the
+  // explicit reopenEntry() correction workflow (ADMIN-only, reason
+  // required, fully audited), which drops the entry back to PENDING first.
+  if (existing.status === 'APPROVED') {
+    throw new AppError(
+      403,
+      'This entry is approved and locked. Ask an Admin to reopen it for correction before editing.',
+    );
+  }
+  if (existing.status === 'CANCELLED') {
+    throw new AppError(403, 'This entry is cancelled and cannot be edited.');
+  }
+
   if (role === 'LABOUR') {
     if (existing.createdById !== userId) {
       throw new AppError(403, 'You can only edit your own entries.');
     }
-    if (existing.status !== 'PENDING') {
-      throw new AppError(
-        403,
-        'This entry has already been processed and can no longer be edited. Contact Admin for a correction.',
-      );
-    }
     // Labour is restricted to operationalFieldsSchema by the schema itself —
     // no amount/financial field exists on this schema to smuggle through.
+    // (status is already guaranteed PENDING here by the check above.)
   }
 
   const updateData: Prisma.WorkEntryUpdateInput = { updatedBy: { connect: { id: userId } } };
@@ -285,18 +313,22 @@ export async function updateEntry(req: Request, res: Response) {
     return res.json({ entry: existing, message: 'No changes to save.' });
   }
 
-  const updated = await prisma.workEntry.update({ where: { id }, data: updateData });
-
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'ENTRY_UPDATED',
-      entityType: 'WorkEntry',
-      entityId: id,
-      oldValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.old])) as Prisma.InputJsonValue,
-      newValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.new])) as Prisma.InputJsonValue,
-      ipAddress: req.ip,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.workEntry.update({ where: { id }, data: updateData });
+    // Same atomicity rule as createEntry: the update and its audit log
+    // commit together or not at all.
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: 'ENTRY_UPDATED',
+        entityType: 'WorkEntry',
+        entityId: id,
+        oldValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.old])),
+        newValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.new])),
+        ipAddress: req.ip,
+      },
+    });
+    return u;
   });
 
   return res.json({ entry: { id: updated.id, status: updated.status } });
@@ -327,21 +359,73 @@ export async function cancelEntry(req: Request, res: Response) {
     throw new AppError(400, 'This entry is already cancelled.');
   }
 
-  const updated = await prisma.workEntry.update({
-    where: { id },
-    data: { status: 'CANCELLED', updatedById: userId },
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.workEntry.update({
+      where: { id },
+      data: { status: 'CANCELLED', updatedById: userId },
+    });
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: 'ENTRY_CANCELLED',
+        entityType: 'WorkEntry',
+        entityId: id,
+        oldValue: { status: existing.status },
+        newValue: { status: 'CANCELLED', reason: reason ?? null },
+        ipAddress: req.ip,
+      },
+    });
+    return u;
   });
 
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'ENTRY_CANCELLED',
-      entityType: 'WorkEntry',
-      entityId: id,
-      oldValue: { status: existing.status },
-      newValue: { status: 'CANCELLED', reason: reason ?? null },
-      ipAddress: req.ip,
-    },
+  return res.json({ entry: { id: updated.id, status: updated.status } });
+}
+
+// -----------------------------------------------------------------------
+// Reopen for correction (ADMIN only — the entire point of locking approved
+// entries is that going back in requires a deliberate, reasoned, audited
+// step, never a silent edit).
+// -----------------------------------------------------------------------
+
+const reopenSchema = z.object({
+  reason: z.string().min(3, 'A reason is required to reopen an approved entry.').max(500),
+});
+
+export async function reopenEntry(req: Request, res: Response) {
+  const { id } = req.params;
+  const { userId } = req.user!;
+  // Route is ADMIN-only (see entry.routes.ts) — Owner, even with every
+  // other financial permission granted, cannot reopen an approved entry.
+  const { reason } = reopenSchema.parse(req.body);
+
+  const existing = await prisma.workEntry.findUnique({ where: { id } });
+  if (!existing) throw new AppError(404, 'Entry not found.');
+  if (existing.status !== 'APPROVED') {
+    throw new AppError(400, 'Only an approved entry can be reopened for correction.');
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.workEntry.update({
+      where: { id },
+      data: {
+        status: 'PENDING',
+        approvedById: null,
+        approvedAt: null,
+        updatedById: userId,
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: 'ENTRY_REOPENED_FOR_CORRECTION',
+        entityType: 'WorkEntry',
+        entityId: id,
+        oldValue: { status: 'APPROVED', approvedById: existing.approvedById, approvedAt: existing.approvedAt },
+        newValue: { status: 'PENDING', reason },
+        ipAddress: req.ip,
+      },
+    });
+    return u;
   });
 
   return res.json({ entry: { id: updated.id, status: updated.status } });
@@ -377,21 +461,23 @@ export async function approveEntry(req: Request, res: Response) {
     throw new AppError(400, 'Add an amount for this entry before approving it.');
   }
 
-  const updated = await prisma.workEntry.update({
-    where: { id },
-    data: { status: 'APPROVED', approvedById: userId, approvedAt: new Date() },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action: 'ENTRY_APPROVED',
-      entityType: 'WorkEntry',
-      entityId: id,
-      oldValue: { status: existing.status },
-      newValue: { status: 'APPROVED' },
-      ipAddress: req.ip,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.workEntry.update({
+      where: { id },
+      data: { status: 'APPROVED', approvedById: userId, approvedAt: new Date() },
+    });
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: 'ENTRY_APPROVED',
+        entityType: 'WorkEntry',
+        entityId: id,
+        oldValue: { status: existing.status },
+        newValue: { status: 'APPROVED' },
+        ipAddress: req.ip,
+      },
+    });
+    return u;
   });
 
   return res.json({ entry: { id: updated.id, status: updated.status } });

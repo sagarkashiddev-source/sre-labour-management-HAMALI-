@@ -14,6 +14,7 @@ import attendanceRoutes from './routes/attendance.routes';
 import reportRoutes from './routes/report.routes';
 import auditLogRoutes from './routes/auditLog.routes';
 import calculationRuleRoutes from './routes/calculationRule.routes';
+import { prisma } from './lib/prisma';
 
 const app = express();
 
@@ -70,6 +71,18 @@ app.use((req, res) => {
 
 app.use(errorHandler);
 
-app.listen(env.port, () => {
+const server = app.listen(env.port, () => {
   console.log(`SRE backend listening on port ${env.port} (${env.nodeEnv})`);
 });
+
+// Close the single shared PrismaClient's connection pool cleanly when
+// Railway (or any host) sends a shutdown signal, instead of leaving
+// connections open until the process is killed outright.
+async function shutdown(signal: string) {
+  console.log(`${signal} received, shutting down.`);
+  server.close(() => {
+    prisma.$disconnect().finally(() => process.exit(0));
+  });
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

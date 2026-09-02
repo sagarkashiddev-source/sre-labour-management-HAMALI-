@@ -148,6 +148,14 @@ export const entriesApi = {
     }),
   approve: (id: string) =>
     request<{ entry: { id: string; status: string } }>(`/entries/${id}/approve`, { method: 'PATCH' }),
+  // Admin-only correction workflow (see backend entry.controller.ts
+  // reopenEntry): drops an APPROVED entry back to PENDING so it — and its
+  // amount, via financialsApi — can be edited again, fully audited.
+  reopen: (id: string, reason: string) =>
+    request<{ entry: { id: string; status: string } }>(`/entries/${id}/reopen`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason }),
+    }),
 };
 
 export interface FinancialBreakdown {
@@ -187,13 +195,13 @@ export const vehicleTypesApi = {
 // --- Users ----------------------------------------------------------------
 
 export interface AppUser {
-  id: string; userCode?: string | null; name: string; phone: string; email: string | null;
+  id: string; name: string; phone: string; email: string | null;
   role: Role; status: 'ACTIVE' | 'DISABLED'; createdAt: string;
 }
 
 export const usersApi = {
   list: () => request<{ users: AppUser[] }>('/users'),
-  create: (data: { name: string; phone: string; email?: string; password: string; role: Role; employeeCode?: string; userCode?: string }) =>
+  create: (data: { name: string; phone: string; email?: string; password: string; role: Role; employeeCode?: string }) =>
     request<{ user: AppUser }>('/users', { method: 'POST', body: JSON.stringify(data) }),
   disable: (id: string) => request<{ user: AppUser }>(`/users/${id}/disable`, { method: 'PATCH' }),
 };
@@ -224,6 +232,13 @@ export interface RangeTotalsDto {
   totalEntries: number; grossAmount: string; totalDeduction: string;
   netAmount: string; totalLabourDays: number; averagePerPerson: string | null;
 }
+export interface MonthlyBillRowDto {
+  date: string; vehicleNo: string; vehicleType: string; loadUnload: string;
+  companyName: string; remark: string | null; amount: string;
+}
+export interface MonthlyBillTotalsDto {
+  subtotal: string; gstRatePct: number; gstAmount: string; grandTotal: string;
+}
 
 export const reportsApi = {
   daily: (date: string) => request<{ date: string; row: DayRowDto | null }>(`/reports/daily${qs({ date })}`),
@@ -231,6 +246,19 @@ export const reportsApi = {
     request<{ month: number; year: number; days: DayRowDto[]; totals: RangeTotalsDto }>(`/reports/monthly${qs({ month, year })}`),
   monthlyExcelUrl: (month: number, year: number) => `${BASE}/reports/monthly/export/excel${qs({ month, year })}`,
   monthlyPdfUrl: (month: number, year: number) => `${BASE}/reports/monthly/export/pdf${qs({ month, year })}`,
+  // The itemized, GST-added "Bill" document (SAGAR ROADWAYS AND
+  // ENTERPRISES billing their client for the month) — distinct from the
+  // day-level hamali summary above. billNo/billDate are optional: the
+  // business assigns its own bill numbering, so these are passed through
+  // as free text rather than generated here.
+  monthlyBill: (month: number, year: number) =>
+    request<{ month: number; year: number; rows: MonthlyBillRowDto[]; totals: MonthlyBillTotalsDto }>(
+      `/reports/monthly-bill${qs({ month, year })}`,
+    ),
+  monthlyBillExcelUrl: (month: number, year: number, billNo?: string, billDate?: string) =>
+    `${BASE}/reports/monthly-bill/export/excel${qs({ month, year, billNo, billDate })}`,
+  monthlyBillPdfUrl: (month: number, year: number, billNo?: string, billDate?: string) =>
+    `${BASE}/reports/monthly-bill/export/pdf${qs({ month, year, billNo, billDate })}`,
   company: (companyId: string, from: string, to: string) =>
     request<{ companyId: string; companyName: string; from: string; to: string; rows: any[]; totals: any }>(
       `/reports/company${qs({ companyId, from, to })}`,
@@ -245,12 +273,12 @@ export const reportsApi = {
 
 export interface CalculationRule {
   id: string; effectiveFrom: string; companyDeductionPct: string;
-  labourDeductionPct: string; otherDeductionPct: string; note: string | null;
+  labourDeductionPct: string; note: string | null;
 }
 
 export const calculationRulesApi = {
   list: () => request<{ rules: CalculationRule[] }>('/calculation-rules'),
-  create: (data: { effectiveFrom: string; companyDeductionPct: number; labourDeductionPct: number; otherDeductionPct?: number; note?: string }) =>
+  create: (data: { effectiveFrom: string; companyDeductionPct: number; labourDeductionPct: number; note?: string }) =>
     request<{ rule: CalculationRule }>('/calculation-rules', { method: 'POST', body: JSON.stringify(data) }),
 };
 

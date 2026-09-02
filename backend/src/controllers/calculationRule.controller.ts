@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getActiveRuleForDate } from '../services/calculation.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 /**
  * Calculation Rules are deliberately APPEND-ONLY — there is no update or
@@ -34,7 +32,14 @@ const createRuleSchema = z.object({
   effectiveFrom: z.coerce.date({ errorMap: () => ({ message: 'A valid effective-from date is required.' }) }),
   companyDeductionPct: z.coerce.number().min(0).max(100, 'Percentage must be between 0 and 100.'),
   labourDeductionPct: z.coerce.number().min(0).max(100, 'Percentage must be between 0 and 100.'),
-  otherDeductionPct: z.coerce.number().min(0).max(100).default(0),
+  // NOTE: an `otherDeductionPct` field previously existed on this schema and
+  // API but was never wired into calculation.service.ts, never surfaced in
+  // the Admin Settings UI, and never applied to any entry — a rule saved
+  // with a non-zero value would silently do nothing, which is worse than
+  // not having the field at all. Removed rather than left half-built; if a
+  // genuine third deduction category is needed later, it should be added
+  // end-to-end (schema + calculation.service + EntryFinancial snapshot +
+  // Settings UI + reports) in one pass, not reintroduced as a dead field.
   note: z.string().max(500).optional(),
 });
 
@@ -48,17 +53,19 @@ export async function createCalculationRule(req: Request, res: Response) {
     throw new AppError(400, 'A calculation rule already starts on this exact date. Choose a different date.');
   }
 
-  const rule = await prisma.calculationRule.create({ data });
-
-  await prisma.auditLog.create({
-    data: {
-      userId: req.user!.userId,
-      action: 'CALCULATION_RULE_CREATED',
-      entityType: 'CalculationRule',
-      entityId: rule.id,
-      newValue: data,
-      ipAddress: req.ip,
-    },
+  const rule = await prisma.$transaction(async (tx) => {
+    const r = await tx.calculationRule.create({ data });
+    await tx.auditLog.create({
+      data: {
+        userId: req.user!.userId,
+        action: 'CALCULATION_RULE_CREATED',
+        entityType: 'CalculationRule',
+        entityId: r.id,
+        newValue: data,
+        ipAddress: req.ip,
+      },
+    });
+    return r;
   });
 
   return res.status(201).json({ rule });
