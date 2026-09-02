@@ -217,7 +217,9 @@ export async function createEntry(req: Request, res: Response) {
         action: 'ENTRY_CREATED',
         entityType: 'WorkEntry',
         entityId: created.id,
-        newValue: { vehicleNo, date: body.date, companyId: body.companyId, loadUnload: body.loadUnload },
+        newValue: {
+          vehicleNo, date: body.date, companyId: body.companyId, loadUnload: body.loadUnload,
+        } as Prisma.InputJsonValue, // body.date is a Date — same JSON-field typing note as below
         ipAddress: req.ip,
       },
     });
@@ -323,8 +325,8 @@ export async function updateEntry(req: Request, res: Response) {
         action: 'ENTRY_UPDATED',
         entityType: 'WorkEntry',
         entityId: id,
-        oldValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.old])),
-        newValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.new])),
+        oldValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.old])) as Prisma.InputJsonValue,
+        newValue: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.new])) as Prisma.InputJsonValue,
         ipAddress: req.ip,
       },
     });
@@ -420,7 +422,12 @@ export async function reopenEntry(req: Request, res: Response) {
         action: 'ENTRY_REOPENED_FOR_CORRECTION',
         entityType: 'WorkEntry',
         entityId: id,
-        oldValue: { status: 'APPROVED', approvedById: existing.approvedById, approvedAt: existing.approvedAt },
+        // approvedAt is a Date — Prisma's Json input type doesn't include
+        // Date structurally, but JSON.stringify (which Prisma uses to
+        // serialize this for the DB) calls Date's own .toJSON() and gets a
+        // normal ISO string, so this is safe at runtime; the cast just
+        // tells TS to trust that instead of rejecting the object shape.
+        oldValue: { status: 'APPROVED', approvedById: existing.approvedById, approvedAt: existing.approvedAt } as Prisma.InputJsonValue,
         newValue: { status: 'PENDING', reason },
         ipAddress: req.ip,
       },

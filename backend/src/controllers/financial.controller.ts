@@ -102,7 +102,12 @@ export async function upsertFinancial(req: Request, res: Response) {
         action: oldAmount === null ? 'AMOUNT_SET' : 'AMOUNT_CHANGED',
         entityType: 'EntryFinancial',
         entityId: id,
-        oldValue: oldAmount === null ? null : { amount: oldAmount.toString() },
+        // Prisma's strict typing for nullable Json columns rejects a bare
+        // `null` literal (it wants Prisma.DbNull/Prisma.JsonNull, not the
+        // JS value) — omitting the key entirely on AMOUNT_SET has the same
+        // effect (column stays at its NULL default) and needs no extra
+        // import.
+        ...(oldAmount === null ? {} : { oldValue: { amount: oldAmount.toString() } }),
         newValue: { amount: calc.amount.toString(), netAmount: calc.netAmount.toString() },
         ipAddress: req.ip,
       },

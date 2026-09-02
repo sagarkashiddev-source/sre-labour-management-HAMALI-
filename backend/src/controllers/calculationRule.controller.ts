@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getActiveRuleForDate } from '../services/calculation.service';
 import { prisma } from '../lib/prisma';
@@ -61,7 +62,9 @@ export async function createCalculationRule(req: Request, res: Response) {
         action: 'CALCULATION_RULE_CREATED',
         entityType: 'CalculationRule',
         entityId: r.id,
-        newValue: data,
+        // data.effectiveFrom is a Date — same JSON-field typing note as
+        // entry.controller.ts's equivalent casts.
+        newValue: data as Prisma.InputJsonValue,
         ipAddress: req.ip,
       },
     });

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../middleware/error.middleware';
 import { getOwnerPermission } from '../services/permission.service';
 import { prisma } from '../lib/prisma';
@@ -81,8 +82,10 @@ export async function updateCompany(req: Request, res: Response) {
         action: 'COMPANY_UPDATED',
         entityType: 'Company',
         entityId: id,
-        oldValue: existing,
-        newValue: u,
+        // existing/u are full Company records (createdAt/updatedAt are
+        // Date) — same JSON-field typing note as entry.controller.ts.
+        oldValue: existing as Prisma.InputJsonValue,
+        newValue: u as Prisma.InputJsonValue,
         ipAddress: req.ip,
       },
     });
