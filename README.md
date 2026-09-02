@@ -1,6 +1,6 @@
 # SRE — Sagar Roadways and Enterprises — Hamali Management System
 
-Full-stack replacement for the manual `SR HAMALI 2026-27.xlsx` workflow.
+Full-stack replacement for the manual workflow.
 Three roles (Admin, Owner, Labour) sharing one backend, with radically
 different frontends per your UI/UX spec's core principle.
 
